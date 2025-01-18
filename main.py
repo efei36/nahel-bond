@@ -1,6 +1,7 @@
 import anthropic
 import os
 from dotenv import load_dotenv
+from audio import setup_text_to_speech, text_to_speech, speech_to_text, choose_input_mode, set_default_or_dynamic, TEXT, SPEECH, DYNAMIC
 
 spren_profiles = {
     "Honorspren": "Honorspren value honesty, integrity, and duty. They are noble and straightforward but can be rigid in their principles. They can change their appearance, including forms like fire or clouds, although they always glow (but not illuminate), and are typically white-blue. This being said, they generally seem to prefer a humanoid form. Usually, it's very small -- only about a handspan tall -- but if need be, a honorspren can make themselves as tall as a regular person.",
@@ -17,7 +18,7 @@ spren_profiles = {
 
 
 def select_conversation_partner():
-    print("Choose a True Spren to chat with:")
+    print("\nChoose a True Spren to chat with:")
     for i, spren in enumerate(spren_profiles.keys(), 1):
         print(f"  {i}. {spren}")
 
@@ -34,7 +35,7 @@ def select_conversation_partner():
 
 
 
-def chat_with_partner(client, spren_type, spren_description):
+def chat_with_partner(client, spren_type, spren_description, input_mode):
     dialogue_separator = "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     if spren_type == "Cryptics" or spren_type == "Reachers":
         spren_type = spren_type[:-1]
@@ -43,12 +44,23 @@ def chat_with_partner(client, spren_type, spren_description):
     print("Type 'exit' to end the conversation.\n")
     print(f"{dialogue_separator}\n")
 
+    engine = setup_text_to_speech()
+    is_dynamic = True if input_mode == DYNAMIC else False
+
     system_prompt = f"You are a {spren_type} from The Stormlight Archive. You embody the following traits: {spren_description}. Engage in conversation while staying true to your character."
     conversation_history = []
 
     while True:
         try:
-            user_message = input("You: ")
+            if is_dynamic:
+                input_mode = choose_input_mode()
+
+            user_message = ""
+            if input_mode == TEXT:
+                user_message = input("You: ")
+            elif input_mode == SPEECH:
+                user_message = speech_to_text(f"The {spren_type} listens as you speak...")
+                print(f"You: {user_message}")
 
             if user_message.lower() == "exit":
                 print(f"The {spren_type} bids you farewell. Goodbye!")
@@ -69,6 +81,9 @@ def chat_with_partner(client, spren_type, spren_description):
             print(f"{spren_type}:\n{formatted_reply}\n")
             print(f"{dialogue_separator}\n")
 
+            if input_mode == SPEECH:
+                text_to_speech(engine, formatted_reply)
+
             conversation_history.append({"role": "assistant", "content": formatted_reply})
         except Exception as e:
             print(f"An error occurred: {e}")
@@ -85,9 +100,10 @@ def main():
         return
     
     client = anthropic.Anthropic(api_key=USER_API_KEY)
+    input_mode = set_default_or_dynamic()
     spren_type, spren_description = select_conversation_partner()
 
-    chat_with_partner(client, spren_type, spren_description)
+    chat_with_partner(client, spren_type, spren_description, input_mode)
 
 
 
